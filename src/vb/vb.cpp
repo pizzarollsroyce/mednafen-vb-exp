@@ -64,6 +64,7 @@ int32 VB_InDebugPeek;
 static uint32 VB3DMode;
 
 static uint8 *WRAM = NULL;
+static uint8 *GPEXP = NULL;
 
 static uint8 *GPRAM = NULL;
 static uint32 GPRAM_Mask;
@@ -193,7 +194,8 @@ uint8 MDFN_FASTCALL MemRead8(v810_timestamp_t &timestamp, uint32 A)
 	  break;
 
   case 3: break;
-  case 4: break;
+  case 4: ret = GPEXP[A & ((1 << 24) - 1)];
+          break;
 
   case 5: ret = WRAM[A & 0xFFFF];
 	  break;
@@ -234,7 +236,8 @@ uint16 MDFN_FASTCALL MemRead16(v810_timestamp_t &timestamp, uint32 A)
 
   case 3: break;
 
-  case 4: break;
+  case 4: ret = MDFN_de16lsb<true>(&GPEXP[A & ((1 << 24) - 1)]);
+          break;
 
   case 5: ret = MDFN_de16lsb<true>(&WRAM[A & 0xFFFF]);
 	  break;
@@ -273,7 +276,8 @@ void MDFN_FASTCALL MemWrite8(v810_timestamp_t &timestamp, uint32 A, uint8 V)
 
   case 3: break;
 
-  case 4: break;
+  case 4: GPEXP[A & ((1 << 24) - 1)] = V;
+          break;
 
   case 5: WRAM[A & 0xFFFF] = V;
           break;
@@ -307,7 +311,8 @@ void MDFN_FASTCALL MemWrite16(v810_timestamp_t &timestamp, uint32 A, uint16 V)
 
   case 3: break;
 
-  case 4: break;
+  case 4: MDFN_en16lsb<true>(&GPEXP[A & ((1 << 24) - 1)], V);
+          break;
 
   case 5: MDFN_en16lsb<true>(&WRAM[A & 0xFFFF], V);
           break;
@@ -534,6 +539,7 @@ static MDFN_COLD void Cleanup(void)
   VB_V810 = NULL;
   WRAM = NULL;
   GPRAM = NULL;
+  GPEXP = NULL;
   GPROM = NULL;
  }
 }
@@ -617,6 +623,11 @@ static MDFN_COLD void Load(GameFile* gf)
   {
    memcpy(GPROM + i, GPROM, rom_size);
   }
+
+
+  Map_Addresses.push_back(0x04000000);
+  GPEXP = VB_V810->SetFastMap(&Map_Addresses[0], 1 << 24, 1, "Cart EXP");
+  Map_Addresses.clear();
 
   md5.starts();
   md5.update(GPROM, rom_size);
@@ -747,6 +758,7 @@ static MDFN_COLD void Load(GameFile* gf)
   MDFNMP_AddRAM(65536, 5 << 24, WRAM);
   if((GPRAM_Mask + 1) >= 32768)
    MDFNMP_AddRAM(GPRAM_Mask + 1, 6 << 24, GPRAM);
+  MDFNMP_AddRAM(1 << 24, 4 << 24, GPEXP);
  }
  catch(...)
  {
